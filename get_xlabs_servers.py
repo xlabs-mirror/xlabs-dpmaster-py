@@ -82,7 +82,7 @@ INFO_RESPONSE_KEYS = ["aimAssist",          # Aim assist (used by IW4x only; 0 =
 
 
 def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: int):
-    """For a given and protocol, return the master server response.
+    """For a given gamename and protocol, return the master server response.
 
     Args:
         ip (str): the IP address of the master server
