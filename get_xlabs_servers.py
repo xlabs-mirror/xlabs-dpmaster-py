@@ -49,11 +49,11 @@ NOTE: Some of these keys may only be present in one of the X Labs games. For
       example, the "dedicated" and "playmode" keys only exist in the response
       packets from S1x.
 
-The server's infoResponse can be unordered, and so when we split the tokens
-we cannot be certain that a specific key will be at a specific index. We
-therefore check each token against this list as a lookup. If the token exists
-in this list, then we know that the following token in the packet  will be 
-its value.
+The server's infoResponse can be unordered, so when we split the tokens
+we cannot be certain that a specific key will always located be at a specific 
+index. We therefore check each token against the values in this list. If the
+token exists in this list, then we know that the next token in the packet
+will be its value.
 """
 INFO_RESPONSE_KEYS = ["aimAssist",          # Aim assist (used by IW4x only; 0 = false, 1 = true)
                       "bots",               # Number of bots
