@@ -43,7 +43,7 @@ SOCKET_TIMEOUT = 0.5                        # The socket timeout (in seconds) wh
 MASTER_SERVER_IP = socket.gethostbyname(MASTER_SERVER_DOMAIN)
 RCV_BUFFER_SIZE = calculate_rcv_buffer_size(SERVER_BATCH_COUNT)
 
-""" List of possible keys from the infoResponse packet.
+"""List of possible keys from the infoResponse packet.
 
 NOTE: Some of these keys may only be present in one of the X Labs games. For
       example, the "dedicated" and "playmode" keys only exist in the response
@@ -94,17 +94,16 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
         master_server_response (list of dict): a list of servers obtained from the master server, of the form: [{"ip": IP_ADDRESS, "port": PORT}, {"ip": IP_ADDRESS, "port": PORT}, ...].
     """
 
-    # Open the socket for UDP datagram transfers over IPv4.
+    # Open the socket for UDP datagram transfers over IPv4 and set the master
+    # server socket timeout.
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+    s.settimeout(MASTER_SERVER_SOCKET_TIMEOUT)
 
     # Craft the packet requesting the full server list from the master server.
     packet = b"\xFF\xFF\xFF\xFFgetservers\n" + gamename.encode('latin-1') + b" %i full empty" % protocol
 
-    # Send the packet to the master server and grab the server response.
+    # Send the "getservers" packet to the master server.
     s.sendto(packet, (ip, port))
-
-    # Configure the socket timeout for the master server response.
-    s.settimeout(MASTER_SERVER_SOCKET_TIMEOUT)
 
     # Wait until we receive a response from the master server IP.
     address = (0, 0)
@@ -119,14 +118,14 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
     # Close the socket.
     s.close()
 
-    # Store the master server results.
+    # Used to store the master server results.
     master_server_response = []
 
     # Strip off the getserversResponse header.
     data = data[24:]
 
     while len(data) != 0:
-        # Grab the next token set (8 bytes)
+        # Grab the next token set.
         tokens = data[0:7]
 
         # If the token contains this EOT string, it's the end, so break out of the loop.
@@ -135,13 +134,12 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
 
         # Grab each token's IP and port.
         ip_str = socket.inet_ntoa(data[0:4])
-        # '>H' is a big-endian unsigned short.
-        port_int = unpack(">H", data[4:6])[0]
+        port_int = unpack(">H", data[4:6])[0]  # '>H' is a big-endian unsigned short.
 
         # Append the IP and port as a JSON object into the master_server_response.
         master_server_response.append({"ip": ip_str, "port": port_int})
 
-        # Remove the front 8 bytes from the data.
+        # Remove the processed bytes from the front of the data.
         data = data[7:]
 
     return master_server_response
