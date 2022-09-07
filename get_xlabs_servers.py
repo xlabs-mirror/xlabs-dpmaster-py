@@ -58,7 +58,7 @@ will be its value.
 INFO_RESPONSE_KEYS = ["aimAssist",          # Aim assist (used by IW4x only; 0 = false, 1 = true)
                       "bots",               # Number of bots
                       "checksum",           # Jenkins one-at-a-time hash checksum
-                      "clients",            # Number of currently connected clients
+                      "clients",            # Number of currently connected clients (NOTE: S1x and IW6x include bots in their "clients" count)
                       "dedicated",          # Dedicated server (used by S1x only; 0 = false, 1 = true)
                       "fs_game",            # Loaded base folder for primary mod assets (i.e. mod name)
                       "gamename",           # Game name (i.e. IW4/IW6/S1)
@@ -167,7 +167,7 @@ def address_in_server_subset(address: tuple, server_subset: list):
     return False, server_subset
 
 
-def process_master_server_response(master_server_response: list):
+def process_master_server_response(master_server_response: list, gamename: str):
     """Provided a list of servers from the master server, request information
        from each server and return a list of servers and the obtained
        information.
@@ -240,6 +240,11 @@ def process_master_server_response(master_server_response: list):
                 new_server = {}
                 new_server['ip'] = address[0]
                 new_server['port'] = str(address[1])
+                
+                # Initialize a client counter. IW6x and S1x include bots in
+                # their client count, so we will need to subtract the number
+                # of bots from this value to get an accurate client count.
+                client_count = 0
 
                 # Strip out the getInfoResponse header of the packet, and then
                 # decode and split the remainder of the packet using \\ delims.
@@ -249,9 +254,24 @@ def process_master_server_response(master_server_response: list):
                     # response keys, if it is we record the value after the
                     # key and we can advance the iterator to the next token.
                     if data[i] in INFO_RESPONSE_KEYS:
-                        new_server[data[i]] = str(data[i+1])
+                        if (data[i] == "clients"):
+                            client_count = str(data[i+1])
+                        else:
+                            new_server[data[i]] = str(data[i+1])
                         i += 1
 
+                # If the game is not IW4x and a bots key was initialized, subtract
+                # the bots fom the client count to get an accurate client count.
+                if (gamename != "IW4"):
+                    if new_server['bots']:
+                        client_count = int(client_count) - int(new_server['bots'])
+                        new_server['clients'] = str(client_count) if client_count >= 0 else "0"
+                    else:
+                        new_server['clients'] = client_count
+                else:
+                    new_server['clients'] = client_count
+
+                    
                 # After we have concluded iterating all tokens, we add the
                 # new server to our list.
                 server_list.append(new_server)
@@ -342,7 +362,7 @@ if __name__ == "__main__":
     iw4x_master_server_response = get_servers_from_master_server(MASTER_SERVER_IP, MASTER_SERVER_PORT, 'IW4', IW4X_PROTOCOL_VERSION)
 
     # Process each IW4x server from the master server's response.
-    iw4x_server_list = process_master_server_response(iw4x_master_server_response)
+    iw4x_server_list = process_master_server_response(iw4x_master_server_response, 'IW4')
 
     # Extract the IW4x metrics from the compiled list.
     bot_count, client_count, server_count, timestamp = extract_metrics(iw4x_server_list)
@@ -360,7 +380,7 @@ if __name__ == "__main__":
     iw6x_master_server_response = get_servers_from_master_server(MASTER_SERVER_IP, MASTER_SERVER_PORT, 'IW6', IW6X_PROTOCOL_VERSION)
 
     # Process each IW6x server from the master server's response.
-    iw6x_server_list = process_master_server_response(iw6x_master_server_response)
+    iw6x_server_list = process_master_server_response(iw6x_master_server_response, 'IW6')
 
     # Extract the IW6x metrics from the compiled list.
     bot_count, client_count, server_count, timestamp = extract_metrics(iw6x_server_list)
@@ -378,8 +398,7 @@ if __name__ == "__main__":
     s1x_master_server_response = get_servers_from_master_server(MASTER_SERVER_IP, MASTER_SERVER_PORT, 'S1', S1X_PROTOCOL_VERSION)
 
     # Process each S1x server from the master server's response.
-    s1x_server_list = process_master_server_response(
-        s1x_master_server_response)
+    s1x_server_list = process_master_server_response(s1x_master_server_response, 'S1')
 
     # S1x features 3 different overarching gamemodes: multiplayer,
     # horde (survival), and zombies. We will split the s1x_server_list into
