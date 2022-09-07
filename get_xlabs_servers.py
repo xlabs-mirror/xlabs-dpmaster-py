@@ -271,7 +271,6 @@ def process_master_server_response(master_server_response: list, gamename: str):
                 else:
                     new_server['clients'] = client_count
 
-                    
                 # After we have concluded iterating all tokens, we add the
                 # new server to our list.
                 server_list.append(new_server)
