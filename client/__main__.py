@@ -1,9 +1,13 @@
+# Code taken from https://github.com/JoelColby/get_xlabs_servers
+# Thanks for the great work Joel ♥
+
 import datetime
 import json
 import os
 import socket
 import sys
 from struct import unpack
+from pprint import pprint
 
 
 def calculate_rcv_buffer_size(batch_count: int):
@@ -26,9 +30,9 @@ def calculate_rcv_buffer_size(batch_count: int):
 
 
 # Master server domain and port.
-MASTER_SERVER_DOMAIN = "master.xlabs.dev"   # The FQDN of the master server.
+MASTER_SERVER_DOMAIN = "192.168.2.38"          # The FQDN of the master server.
 MASTER_SERVER_PORT = 20810                  # The port of the master server.
-MASTER_SERVER_SOCKET_TIMEOUT = 1            # The socket timeout (in seconds) for the getservers packet.
+MASTER_SERVER_SOCKET_TIMEOUT = 5            # The socket timeout (in seconds) for the getservers packet.
 
 # Game protocol versions, which are required parameters when querying the master server.
 IW4X_PROTOCOL_VERSION = 150                 # https://github.com/XLabsProject/iw4x-client/blob/master/src/Game/Structs.hpp#L3 (0x96 = 150)
@@ -80,6 +84,11 @@ INFO_RESPONSE_KEYS = ["aimAssist",          # Aim assist (used by IW4x only; 0 =
                       "wwwUrl",             # HTTP web server base URL for usermaps and mods downloads
                       "xuid"]               # Steam User ID (NOTE: IW4x uses a static ID for dedicated servers, the int64 casted value of "DEDICATE", which is "4554414349444544")
 
+def send_packet(s:socket, packet:bytes, address:tuple):
+    print("=== send_packet ===")
+    pprint(packet)
+    pprint(address)
+    s.sendto(packet, address)
 
 def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: int):
     """For a given gamename and protocol, return the master server response.
@@ -103,16 +112,20 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
     packet = b"\xFF\xFF\xFF\xFFgetservers\n" + gamename.encode('latin-1') + b" %i full empty" % protocol
 
     # Send the "getservers" packet to the master server.
-    s.sendto(packet, (ip, port))
+    send_packet(s, packet, (ip, port))
 
     # Wait until we receive a response from the master server IP.
     address = (0, 0)
     while address[0] != ip:
         try:
             data, address = s.recvfrom(4096)
-        except:
+            print("=== data, address = s.recvfrom(4096) ===")
+            pprint(data)
+            pprint(address)
+        except Exception as ex:
             # If the response times out or we receive any other error, exit the
             # script immediately.
+            pprint(ex)
             sys.exit("An issue occurred when obtaining results from the master server. Exiting script.")
 
     # Close the socket.
@@ -123,6 +136,8 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
 
     # Strip off the getserversResponse header.
     data = data[24:]
+    print("=== data = data[24:] ===")
+    pprint(data)
 
     while len(data) != 0:
         # Grab the next token set.
@@ -135,6 +150,10 @@ def get_servers_from_master_server(ip: str, port: int, gamename: str, protocol: 
         # Grab each token's IP and port.
         ip_str = socket.inet_ntoa(data[0:4])
         port_int = unpack(">H", data[4:6])[0]  # '>H' is a big-endian unsigned short.
+
+        print("=== ip_str = port_int ===")
+        pprint(ip_str)
+        pprint(port_int)
 
         # Append the IP and port as a JSON object into the master_server_response.
         master_server_response.append({"ip": ip_str, "port": port_int})
