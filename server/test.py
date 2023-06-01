@@ -5,7 +5,7 @@ import os
 import socket
 import sys
 from struct import pack, unpack
-from pprint import pprint
+from pprint import pformat, pprint
 from urllib import request
 from urllib.parse import quote
 from ssl import SSLContext
@@ -77,23 +77,36 @@ def decode_servers(packet:bytes) -> list[GameServer]:
     return servers
 
 def encode_servers(servers: list[GameServer]) -> bytes:
-    packet = bytearray()
-    for server in servers:
-        ip = socket.inet_aton(server.ip)
-        port = pack(">H", server.port)
-        server_data = ip + port
-        packet += server_data
-    packet += b'\x00' * ((len(servers) * 6) % 8)  # Add padding
-    packet += b'EOT\x00\x00\x00'
-    pprint_bytearray(packet)
-    return packet
+    print("encode_servers(servers=",pformat(servers))
+    # header = bytearray([0xFF, 0xFF, 0xFF, 0xFF])  # Header
+    # header += b'getserversResponse'
+
+    server_data = bytearray()
+    for i, server in enumerate(servers):
+        print("for server in servers:",i+1,"/",len(servers))
+        ip_bytes_aton = socket.inet_aton(server.ip)
+        print("\tip_bytes_aton:",pprint_bytearray(ip_bytes_aton))
+        ip_parts = server.ip.split('.')
+        print("\tip_parts:",pformat(ip_parts))
+        ip_bytes = bytes([int(part) for part in ip_parts])
+        print("\tip_bytes:",pprint_bytearray(ip_bytes))
+        port_bytes = pack('!H', server.port)
+        print("\tport_bytes:",pprint_bytearray(port_bytes))
+        server_bytes = ip_bytes + port_bytes
+        print("\tserver_bytes:",pprint_bytearray(server_bytes))
+        server_data += server_bytes
+
+    response_buffer = header + server_data
+    print("response_buffer:",pprint_bytearray(response_buffer))
+
+    return response_buffer
 
 
 
-pprint_bytearray(header)
+# pprint_bytearray(header)
 servers = get_server_list()
-print("servers:"); pprint(servers)
+# print("servers:"); pprint(servers)
 encoded = encode_servers(servers)
-print("encoded:"); pprint(encoded)
-decoded = decode_servers(encoded)
-print("decoded:"); pprint(decoded)
+# print("encoded:"); pprint(encoded)
+# decoded = decode_servers(encoded)
+# print("decoded:"); pprint(decoded)
