@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import datetime
 import json
 import os
-import socket
+from socket import socket, AF_INET, SOCK_DGRAM, gethostbyname
 import sys
 from struct import pack, unpack
 from pprint import pprint
@@ -13,6 +13,7 @@ from time import sleep
 from threading import Thread
 from utils import calculate_buffer_size, send_notification
 from classes.GameServer import GameServerEntry
+from classes.packets.getServersResponse import getServersResponse
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ApiServer import XLabsMasterServerAPI
@@ -21,6 +22,7 @@ class XLabsMasterServer:
     running: bool = False
     paused: bool = False
     api: XLabsMasterServerAPI
+    socket: socket
     # Master server domain and port.
     MASTER_SERVER_DOMAIN: str  # The FQDN of the master server.
     MASTER_SERVER_PORT: int  # The port of the master server.
@@ -46,13 +48,13 @@ class XLabsMasterServer:
         self.TX_BUFFER_SIZE = calculate_buffer_size(self.SERVER_BATCH_COUNT)
 
         # Create a datagram socket
-        self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.socket = socket(family=AF_INET, type=SOCK_DGRAM)
 
         # Bind to address and IP
-        self.UDPServerSocket.bind((self.MASTER_SERVER_IP, self.MASTER_SERVER_PORT))
+        self.socket.bind((self.MASTER_SERVER_IP, self.MASTER_SERVER_PORT))
         print("UDP server ready")
 
-    def get_host_ip(self): return socket.gethostbyname(self.MASTER_SERVER_DOMAIN)
+    def get_host_ip(self): return gethostbyname(self.MASTER_SERVER_DOMAIN)
 
     def get_server_list(self):
         serverList = [
@@ -62,55 +64,41 @@ class XLabsMasterServer:
         ]
         return serverList
 
-    def send_packet(self, s: socket, packet: bytes, address: tuple = None):
+    def send_packet(self, packet: bytes, address: tuple = None):
         print("=== send_packet ===")
         pprint(packet)
         pprint(address)
-        s.sendto(packet, address)
+        self.socket.sendto(packet, address)
+
+    def parse_packet(self, client_address:IPv4Address, data:bytes):
+        clientMessageStripped = data.lstrip(b"\xFF")
+        print("Message from Client (Stripped): {}".format(clientMessageStripped))
+        # Process client message and generate response
+        if clientMessageStripped.startswith(b'getinfo'):
+            targetIP, targetPort = data.split()[1], int(data.split()[2])
+            response = self.process_getinfo(targetIP, targetPort)
+            self.socket.sendto(response.encode('latin-1'))
+        elif clientMessageStripped.startswith(b"getservers"):
+            # Creating a list of server IP addresses and ports
+            serverList = self.get_server_list()
+            response = getServersResponse(serverList)
+            # Sending the response to the client
+            self.send_packet(response.get_bytes(serverList), client_address)
+        else:
+            # Sending a default response to the client
+            self.send_packet(b"default response", client_address)
 
     def run(self):
         self.running = True
         # Listen for incoming datagrams
         while self.running:
             if not self.paused:
-                bytesAddressPair = self.UDPServerSocket.recvfrom(self.TX_BUFFER_SIZE)
+                bytesAddressPair = self.socket.recvfrom(self.TX_BUFFER_SIZE)
                 clientAddress = bytesAddressPair[1]
                 print("Client IP Address: {}".format(clientAddress))
                 clientMessage = bytesAddressPair[0]
                 print("Message from Client: {}".format(clientMessage))
-                clientMessageStripped = clientMessage.lstrip(b"\xFF")
-                print("Message from Client (Stripped): {}".format(clientMessageStripped))
-                # Process client message and generate response
-                if clientMessageStripped.startswith(b'getinfo'):
-                    # Extract the target IP and port from the command
-                    targetIP, targetPort = clientMessage.split()[1], int(clientMessage.split()[2])
-
-                    # Process the target IP and port and generate a response
-                    response = self.process_getinfo(targetIP, targetPort)
-
-                    # Send the response back to the client
-                    self.UDPServerSocket.sendto(response.encode('latin-1'))
-                elif clientMessageStripped.startswith(b"getservers"):
-                    response = b"\xFF\xFF\xFF\xFFgetserversResponse\\"
-
-                    # Creating a list of server IP addresses and ports
-                    serverList = self.get_server_list()
-                    # response += str(len(serverList)).encode("latin-1")
-                    print("=== response with len ===")
-                    pprint(response)
-                    # Adding server IPs and ports to the response
-                    for server in serverList:
-                        print("Adding server", server, "as", server.bytes())
-                        response += server.ip_bytes()
-                        response += server.port_bytes()
-
-                    response += b"EOT\x00\x00\x00"
-
-                    # Sending the response to the client
-                    self.send_packet(self.UDPServerSocket, response, clientAddress)
-                else:
-                    # Sending a default response to the client
-                    self.send_packet(self.UDPServerSocket, b"default response", clientAddress)
+                self.parse_packet(clientAddress, clientMessage)
             else: sleep(.1)
 
     def run_threaded(self):

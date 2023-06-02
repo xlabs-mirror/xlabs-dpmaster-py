@@ -11,7 +11,7 @@ class RawPacket():
         self.footer = footer
 
     def set_header(self, header: str):
-        self.header = b"\xFF\xFF\xFF\xFF{header}\n ".format(header=header)
+        self.header = b"\xFF\xFF\xFF\xFF" + bytes(header, encoding="utf-8") + b"\n "
         return self.header
 
     def get_header(self) -> str:
