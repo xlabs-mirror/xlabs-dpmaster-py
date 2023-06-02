@@ -1,6 +1,9 @@
+from __future__ import annotations
 from logging import getLogger
 from . import RawPacket
-from GameServer import GameServer
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..GameServer import GameServerEntry
 
 # def process_getinfo(targetIP:str, targetPort:int):
 #     response = b"\xFF\xFF\xFF\xFFgetinfoResponse\\"
@@ -15,9 +18,9 @@ from GameServer import GameServer
 
 class getInfoResponse(RawPacket):
     logger = getLogger(__name__)
-    server: GameServer
+    server: GameServerEntry
     server_info: dict
-    def __init__(self, server:GameServer, server_info:dict) -> None:
+    def __init__(self, server:GameServerEntry, server_info:dict) -> None:
         super().__init__("getInfoResponse")
         self.server = server
         self.server_info = server_info

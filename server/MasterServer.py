@@ -12,7 +12,7 @@ from pprint import pprint
 from time import sleep
 from threading import Thread
 from utils import calculate_buffer_size, send_notification
-from classes.GameServer import GameServer
+from classes.GameServer import GameServerEntry
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ApiServer import XLabsMasterServerAPI
@@ -56,9 +56,9 @@ class XLabsMasterServer:
 
     def get_server_list(self):
         serverList = [
-            GameServer("192.168.2.1", 28960),
-            GameServer("192.168.2.2", 28961),
-            GameServer("192.168.2.3", 28962),
+            GameServerEntry("192.168.2.1", 28960),
+            GameServerEntry("192.168.2.2", 28961),
+            GameServerEntry("192.168.2.3", 28962),
         ]
         return serverList
 

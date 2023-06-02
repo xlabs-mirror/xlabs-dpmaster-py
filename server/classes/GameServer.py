@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from struct import pack
+from .GameServerInfo import GameServerInfo
 
 @dataclass
-class GameServer():
+class GameServerEntry():
     domain: str
     ip: IPv4Address
     port: int
@@ -15,3 +16,8 @@ class GameServer():
     def port_bytes(self): return pack('>H', self.port) # self.port.to_bytes(2, byteorder="big")
     def __str__(self) -> str: return f"{self.ip}:{self.port}"
     def bytes(self) -> str: return self.ip_bytes() + self.port_bytes() + b"\xFF"
+
+@dataclass
+class GameServer(GameServerEntry):
+    variables:dict
+    info:GameServerInfo

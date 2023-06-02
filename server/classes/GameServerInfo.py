@@ -9,7 +9,7 @@ class GameName(Enum):
     S1X = "S1X"
 
 @dataclass
-class ServerInfo():
+class GameServerInfo():
     hostname:str
     gamename:GameName
     protocol:int

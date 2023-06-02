@@ -21,26 +21,26 @@ class XLabsMasterServerAPI:
             servers = [{'domain': server.domain, 'ip': str(server.ip), 'port': server.port} for server in server_list]
             return jsonify(servers)
 
-        @self.app.route('/udp-server/start', methods=['GET'])
-        def start_udp_server():
+        @self.app.route('/master/start')
+        def start_master_server():
             if not self.master_server.running:
                 self.master_server.run_threaded()
                 return jsonify({'message': 'UDP server started.'}), 200
             else:
                 return jsonify({'message': 'UDP server is already running.'}), 400
 
-        @self.app.route('/udp-server/stop', methods=['GET'])
-        def stop_udp_server():
+        @self.app.route('/master/stop')
+        def stop_master_server():
             if self.master_server.running:
                 self.master_server.stop()
                 return jsonify({'message': 'UDP server stopped.'}), 200
             else:
                 return jsonify({'message': 'UDP server is not running.'}), 400
 
-        @self.app.route('/udp-server/restart', methods=['GET'])
-        def restart_udp_server():
-            self.stop_udp_server()
-            self.start_udp_server()
+        @self.app.route('/master/restart')
+        def restart_master_server(self):
+            self.stop_master_server()
+            self.start_master_server()
             return jsonify({'message': 'UDP server restarted.'}), 200
 
     def run_threaded(self):

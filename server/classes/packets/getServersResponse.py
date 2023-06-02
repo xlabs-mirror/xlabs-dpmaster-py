@@ -1,20 +1,23 @@
-from logging import getLogger
+from __future__ import annotations
 
+from logging import getLogger
 from . import RawPacket
-from .. import GameServer
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .. import GameServerEntry
 
 
 class getServersResponse(RawPacket):
     logger = getLogger(__name__)
-    servers: list[GameServer]
-    def __init__(self, servers:list[GameServer] = None) -> None:
+    servers: list[GameServerEntry]
+    def __init__(self, servers:list[GameServerEntry] = None) -> None:
         super().__init__("getServersResponse")
         self.servers = servers
 
-    def get_servers_bytes(self, servers:list[GameServer]):
+    def get_servers_bytes(self, servers:list[GameServerEntry]):
         servers_bytes = bytearray()
         for i, server in enumerate(servers):
-            server: GameServer
+            server: GameServerEntry
             server_bytes = server.bytes()
             self.logger.log(f"{server} > {server_bytes}")
             servers_bytes += server_bytes
